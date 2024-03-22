@@ -7,15 +7,16 @@ from urllib3.util import Retry
 import urllib3
 import subprocess
 import re
-APIKEY = os.getenv("APIKEY")
+
+APIKEY =  os.getenv("APIKEY")
 ORGID = os.getenv("ORGID")
 SNYKAPIVERSION = "2023-11-06~beta"
-SNYKDEBUG = os.getenv("SNYKDEBUG")
+SNYKDEBUG = bool(os.getenv("SNYKDEBUG"))
 DOCKERPASSWORD = os.getenv("DOCKERPASSWORD")
 DOCKERUSER = os.getenv("DOCKERUSER")
 APIKEY = "Token " + APIKEY
 
-ignoredMetadata = ["kubectl.kubernetes.io/last-applied-configuration", "app.kubernetes.io/instance", "kubernetes.io/config.seen"]
+ignoredMetadata = ["kubectl.kubernetes.io/last-applied-configuration", "app.kubernetes.io/instance", "kubernetes.io/config.seen", "component"]
 
 class podMetadata:
     def __init__(self, imageName, labels, annotations) -> None:
@@ -25,15 +26,10 @@ class podMetadata:
 
 def scanMissingImages(images):
 
-    getSnykPath =  subprocess.Popen("which snyk", shell=True, stdout=subprocess.PIPE).stdout
-    snykPath =  str(getSnykPath.read())
-    snykPath = re.findall('\/.*snyk',snykPath)[0]
+    snykPath =  re.findall('\/.*snyk',str(subprocess.run(["which",  "snyk"], shell=False, stdout=subprocess.PIPE).stdout))[0]
 
+    subprocess.run([snykPath, "auth", APIKEY.split()[1]], shell=False)
 
-
-    splitKey = APIKEY.split()
-    cmd = '{} auth {}'.format(snykPath, splitKey[1])
-    os.system(cmd)
     for missingImage in images:
 
         tags = []
@@ -44,12 +40,12 @@ def scanMissingImages(images):
                 tags.append(tagVal)
                 tagVal = ""
 
-
-
-        if missingImage.annotations is not None:
+        if missingImage.annotations is not None and len(tags) < 10:
             for podMetadata in missingImage.annotations:
                 if podMetadata in ignoredMetadata or len(podMetadata) > 30:
                     continue
+                if len(tags) >= 10:
+                    break
                 tagVal = podMetadata + "=" + missingImage.annotations[podMetadata]
                 tags.append(tagVal)
                 tagVal = ""            
@@ -57,18 +53,23 @@ def scanMissingImages(images):
         tagVal = ','.join(map(str, tags))
         tagVal = tagVal.replace(".", "-").replace("/", "-")
 
-
-
         print("Scanning {}".format(missingImage.imageName))
-        #imageName = missingImage.imageName.split(':')[1]
 
-        if bool(SNYKDEBUG) == True:
-            cmd = '{} container monitor {} -d --org={} --username={} --password={} --tags={}'.format(snykPath,missingImage.imageName, ORGID, DOCKERUSER, DOCKERPASSWORD, tagVal)
-        else:
-            cmd = '{} container monitor {} --org={} --username={} --password={} --tags={} --project-name={}'.format(snykPath,missingImage.imageName, ORGID, DOCKERUSER, DOCKERPASSWORD, tagVal, missingImage.imageName)
+        args = []
+        args.append(missingImage.imageName)
+        args.append('--project-name=' + missingImage.imageName)
+        if tags:
+            args.append('--tags=' + tagVal)
+        if SNYKDEBUG:
+            args.append('-d')
+        if ORGID:
+            args.append('--org=' + ORGID)
+        if DOCKERUSER and DOCKERPASSWORD:
+            args.append('--username=' + DOCKERUSER)
+            args.append('--password=' + DOCKERPASSWORD)
 
-        print(cmd)
-        os.system(cmd)
+        subprocess.run([snykPath, 'container', 'monitor'] + args, shell=False)
+
 
 
 def deleteNonRunningTargets():
@@ -151,7 +152,7 @@ else:
     config.load_kube_config()
 v1 = client.CoreV1Api()
 
-#vars for later logic
+
 allRunningPods = []
 needsToBeScanned = []
 
@@ -184,8 +185,8 @@ for pod in v1.list_pod_for_all_namespaces().items:
             continue
         allRunningPods.append(image)
         
-        encodedImage = image.replace(":", "%3A")
-        encodedImage = encodedImage.replace("/", "%2F")
+        encodedImage = image.replace(":", "%3A").replace("/", "%2F").replace("@", "%40")
+
         URL = "https://api.snyk.io/rest/orgs/{}/projects?names={}&version=2023-11-06%7Ebeta".format(ORGID, encodedImage, SNYKAPIVERSION)
         try:
             print("Sending request to the container images endpoint for {}".format(image))
@@ -197,7 +198,7 @@ for pod in v1.list_pod_for_all_namespaces().items:
             continue
         
         podObject = podMetadata(image, podLabels, podAnnotations)
-        imageExists = True
+
         if not responseJSON.get('data'):
             print("{} does not exist in Snyk, adding it to the queue to be scanned".format(image))
             needsToBeScanned.append(podObject)
