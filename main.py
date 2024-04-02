@@ -36,9 +36,14 @@ def scanMissingImages(images):
         
         if missingImage.labels is not None:
             for podMetadata in missingImage.labels:
+                if podMetadata in ignoredMetadata or len(podMetadata) > 30:
+                    continue
+                if len(tags) >= 10:
+                    break
                 tagVal = podMetadata + "=" + missingImage.labels[podMetadata]
                 tags.append(tagVal)
                 tagVal = ""
+
 
         if missingImage.annotations is not None and len(tags) < 10:
             for podMetadata in missingImage.annotations:

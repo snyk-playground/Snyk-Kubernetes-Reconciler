@@ -1,0 +1,43 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: snyk-reconciler
+spec:
+  template:
+    spec:
+      serviceAccountName: snyk-reconciler
+      containers:
+      - image: a1doll/k8sreconciler:beta
+        name: snyk-reconciler
+        resources: {}
+        imagePullPolicy: Always
+        securityContext:
+          privileged: True
+        env:
+        - name: APIKEY
+          valueFrom:
+            secretKeyRef:
+              name: snyk-creds
+              key: APITOKEN
+        - name: ORGID
+          valueFrom:
+            secretKeyRef:
+              name: snyk-creds
+              key: ORGID
+        - name: SNYKAPIVERSION
+          value: "2023-11-06~beta"
+        - name:  SNYKDEBUG
+          value: "False"
+        volumeMounts:
+        - mountPath: /tmp/.docker
+          name: snyk-cred
+      restartPolicy: Never
+      volumes:
+      - name: docker-config
+        secret:
+          defaultMode: 420
+          items:
+          - key: dockercfg.json
+            path: config.json
+          optional: true
+          secretName: snyk-creds
