@@ -2,12 +2,13 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: snyk-reconciler
+  namespace: Snyk-Reconciler
 spec:
   template:
     spec:
       serviceAccountName: snyk-reconciler
       containers:
-      - image: a1doll/k8sreconciler:beta
+      - image: <YourCreatedImage>
         name: snyk-reconciler
         resources: {}
         imagePullPolicy: Always
