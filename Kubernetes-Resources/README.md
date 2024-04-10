@@ -1,7 +1,7 @@
 # Snyk-Kubernetes-reconciler
 Stop-gap visibility while V3 of the enterprise monitor is not GA. This implemtnation requires running Docker inside of Docker (DIND), which means there is a requirement that this pod runs as privledged.
 
-[<img alt="alt_text" src="(https://github.com/snyk-labs/oss-images/blob/main/oss-example.jpg)" />](https://github.com/snyk-labs/oss-images/blob/main/oss-example.jpg)
+[<img alt="alt_text" src="https://raw.githubusercontent.com/snyk-labs/oss-images/main/oss-example.jpg" />](https://raw.githubusercontent.com/snyk-labs/oss-images/main/oss-example.jpg)
 
 # How to Deploy
 
