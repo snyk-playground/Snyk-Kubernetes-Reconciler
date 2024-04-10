@@ -11,14 +11,16 @@ To deploy the K8s reconciler, you will first need to create the relevant Role re
 
 2. `docker push YourImageName:YourImageTag`. This will push the image we just created to your repository to be pulled by the Cron Job/Job resource that we will deploy later.
 
-3. `kubectl create ns Snyk-Reconciler`. This creates a namespace so we can deploy our resources separated from the rest of the cluster.
+3. After doing so, you will need to edit the `image` entry within the Job.yaml to point to the image that you pushed to your registry.
 
-4. `kubectl apply -f /Kubernetes-Resources/roleResources.yaml -n Snyk-Reconciler`. These are the Kubernetes role resources needed to deploy, this requires cluster scope and the ability to list pods in all namespaces. If there is an issue deploying this file, you can apply them individually as well.
+4. `kubectl create ns Snyk-Reconciler`. This creates a namespace so we can deploy our resources separated from the rest of the cluster.
 
-5. Once the Resources are created you will need to create a secret named `snyk-creds` in the namespace your job runs. If you require that the Reconciler pulls from private repositories, you can instead point the dockercfg.json at a config file that has credentials that can access all repositories. The following command can be used to generate the secret, there is no need to include the `Token` prefix for your APITOKEN:
+5. `kubectl apply -f /Kubernetes-Resources/roleResources.yaml -n Snyk-Reconciler`. These are the Kubernetes role resources needed to deploy, this requires cluster scope and the ability to list pods in all namespaces. If there is an issue deploying this file, you can apply them individually as well.
+
+6. Once the Resources are created you will need to create a secret named `snyk-creds` in the namespace your job runs. If you require that the Reconciler pulls from private repositories, you can instead point the dockercfg.json at a config file that has credentials that can access all repositories. The following command can be used to generate the secret, there is no need to include the `Token` prefix for your APITOKEN:
 
 ```
 kubectl create secret generic snyk-creds --from-file=dockercfg.json={} --from-literal=ORGID={} --from-literal=APITOKEN={}
 ```
 
-6. After creating your secret, you can run a job with `kubectl apply -f job.yaml`. If you are looking to do cadenced runs you can easily convert this to a cronjob (https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/)
+7. After creating your secret, you can run a job with `kubectl apply -f job.yaml`. If you are looking to do cadenced runs you can easily convert this to a cronjob (https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/)
