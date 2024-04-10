@@ -1,9 +1,7 @@
 # Snyk-Kubernetes-reconciler
 Stop-gap visibility while V3 of the enterprise monitor is not GA
 
-# Disclaimers 
-
-This project is in early beta, please open an issue on this repository or reach out to your Snyk representitive if you encounter any issues!
+[<img alt="alt_text" src="https://raw.githubusercontent.com/snyk-labs/oss-images/main/oss-example.jpg" />](https://raw.githubusercontent.com/snyk-labs/oss-images/main/oss-example.jpg)
 
 # How to Deploy
 
