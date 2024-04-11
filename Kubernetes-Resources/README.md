@@ -13,14 +13,14 @@ To deploy the K8s reconciler, you will first need to create the relevant Role re
 
 3. After doing so, you will need to edit the `image` entry within the Job.yaml to point to the image that you pushed to your registry.
 
-4. `kubectl create ns Snyk-Reconciler`. This creates a namespace so we can deploy our resources separated from the rest of the cluster.
+4. `kubectl create ns snyk-reconciler`. This creates a namespace so we can deploy our resources separated from the rest of the cluster.
 
-5. `kubectl apply -f /Kubernetes-Resources/roleResources.yaml -n Snyk-Reconciler`. These are the Kubernetes role resources needed to deploy, this requires cluster scope and the ability to list pods in all namespaces. If there is an issue deploying this file, you can apply them individually as well.
+5. `kubectl apply -f /Kubernetes-Resources/roleResources.yaml -n snyk-reconciler`. These are the Kubernetes role resources needed to deploy, this requires cluster scope and the ability to list pods in all namespaces. If there is an issue deploying this file, you can apply them individually as well.
 
 6. Once the Resources are created you will need to create a secret named `snyk-creds` in the namespace your job runs. If you require that the Reconciler pulls from private repositories, you can instead point the dockercfg.json at a config file that has credentials that can access all repositories. The following command can be used to generate the secret, there is no need to include the `Token` prefix for your APITOKEN:
 
 ```
-kubectl create secret generic snyk-creds -n Snyk-Reconciler --from-file=dockercfg.json={} --from-literal=ORGID={} --from-literal=APITOKEN={}
+kubectl create secret generic snyk-creds -n snyk-reconciler --from-file=dockercfg.json={} --from-literal=ORGID={} --from-literal=APITOKEN={}
 ```
 
 7. After creating your secret, you can run a job with `kubectl apply -f job.yaml`. If you are looking to do cadenced runs you can easily convert this to a cronjob (https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/)
