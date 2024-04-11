@@ -20,7 +20,7 @@ To deploy the K8s reconciler, you will first need to create the relevant Role re
 6. Once the Resources are created you will need to create a secret named `snyk-creds` in the namespace your job runs. If you require that the Reconciler pulls from private repositories, you can instead point the dockercfg.json at a config file that has credentials that can access all repositories. The following command can be used to generate the secret, there is no need to include the `Token` prefix for your APITOKEN:
 
 ```
-kubectl create secret generic snyk-creds --from-file=dockercfg.json={} --from-literal=ORGID={} --from-literal=APITOKEN={}
+kubectl create secret generic snyk-creds -n Snyk-Reconciler --from-file=dockercfg.json={} --from-literal=ORGID={} --from-literal=APITOKEN={}
 ```
 
 7. After creating your secret, you can run a job with `kubectl apply -f job.yaml`. If you are looking to do cadenced runs you can easily convert this to a cronjob (https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/)
