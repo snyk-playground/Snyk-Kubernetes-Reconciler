@@ -2,7 +2,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: snyk-reconciler
-  namespace: Snyk-Reconciler
+  namespace: snyk-reconciler
 spec:
   template:
     spec:
