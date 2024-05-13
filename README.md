@@ -14,8 +14,8 @@ The general idea is to query the Kubernetes API server (once), and validate what
 
 Currently this project runs as a python script on a local machine (see ReadMe within Kubernetes-Resources for information on running this as a pod). This requires a few things to be done prior:
 
-1. `APITOKEN` environment variable set with the relevant API token from the Snyk tennant.
-2. `ORGID` environment variable set with the relevant organization ID from the Snyk tennant.
+1. `SNYK_TOKEN` environment variable set with the relevant API token from the Snyk tennant.
+2. `SNYK_CFG_ORG_ID` environment variable set with the relevant organization ID from the Snyk tennant.
 3. A local Docker client running, that has access to the private repositories that your pods are running images from. If desired, you can also set the `DOCKERUSER` and `DOCKERPASSWORD` environment variables to pass to the Snyk CLI.
 4. The Snyk CLI is available on the machine, pathing is based on the command `which snyk`.
 5. Python available on the local machine, with the appropriate requirements installed. These can be installed by running `pip install -r requirements.txt` in the root directory of this project.

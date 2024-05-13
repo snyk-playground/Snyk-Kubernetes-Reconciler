@@ -15,16 +15,16 @@ spec:
         securityContext:
           privileged: True
         env:
-        - name: APIKEY
+        - name: SNYK_TOKEN
           valueFrom:
             secretKeyRef:
               name: snyk-creds
-              key: APITOKEN
-        - name: ORGID
+              key: SNYK_TOKEN
+        - name: SNYK_CFG_ORG_ID
           valueFrom:
             secretKeyRef:
               name: snyk-creds
-              key: ORGID
+              key: SNYK_CFG_ORG_ID
         - name: SNYKAPIVERSION
           value: "2023-11-06~beta"
         - name:  SNYKDEBUG

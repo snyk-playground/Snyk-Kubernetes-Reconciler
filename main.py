@@ -8,8 +8,8 @@ import urllib3
 import subprocess
 import re
 
-APIKEY =  os.getenv("APIKEY")
-ORGID = os.getenv("ORGID")
+APIKEY =  os.getenv("API_KEY")
+ORGID = os.getenv("SNYK_CFG_ORG_ID")
 SNYKAPIVERSION = "2023-11-06~beta"
 SNYKDEBUG = bool(os.getenv("SNYKDEBUG"))
 DOCKERPASSWORD = os.getenv("DOCKERPASSWORD")
