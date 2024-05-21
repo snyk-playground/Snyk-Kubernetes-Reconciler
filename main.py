@@ -16,13 +16,14 @@ DOCKERPASSWORD = os.getenv("DOCKERPASSWORD")
 DOCKERUSER = os.getenv("DOCKERUSER")
 APIKEY = "Token " + APIKEY
 
-ignoredMetadata = ["kubectl.kubernetes.io/last-applied-configuration", "app.kubernetes.io/instance", "kubernetes.io/config.seen", "component"]
+ignoredMetadata = ["pod-template-hash","kubectl.kubernetes.io/last-applied-configuration", "app.kubernetes.io/instance", "kubernetes.io/config.seen", "component"]
 
 class podMetadata:
-    def __init__(self, imageName, labels, annotations) -> None:
+    def __init__(self, imageName, labels, annotations, securityMetadata) -> None:
         self.imageName = imageName
         self.labels = labels
         self.annotations = annotations
+        self.securityMetadata = securityMetadata
 
 def scanMissingImages(images):
 
@@ -34,6 +35,11 @@ def scanMissingImages(images):
 
         tags = []
         
+        for podSecurityData in missingImage.securityMetadata:
+            tagVal = podSecurityData[0] + "=" + podSecurityData[1]
+            tags.append(tagVal)
+            tagVal = ""
+           
         if missingImage.labels is not None:
             for podMetadata in missingImage.labels:
                 if podMetadata in ignoredMetadata or len(podMetadata) > 30:
@@ -185,6 +191,39 @@ for pod in v1.list_pod_for_all_namespaces().items:
             for imagesInContainer in multiContainerPod:
                 if image in imagesInContainer.image:
                     image = imagesInContainer.image
+       
+        podHasCPULimit = ["PodHasCPULimit","FAIL"]
+        podHasMemoryLimit = ["podHasMemoryLimit","FAIL"]
+        podIsPrivileged = ["podIsPrivileged","FAIL"]
+        podIsRoot = ["podIsRoot","FAIL"]
+        podFSSafe= ["podFileSystemReadOnly","FAIL"]
+        podDropsCapabilities = ["podDropsCapabilities","FAIL"]
+        
+        podSecurityData = [podHasCPULimit, podHasMemoryLimit, podIsPrivileged, podIsRoot, podFSSafe, podDropsCapabilities]
+        if container.resources._limits is not None:
+            for limit in container.resources._limits:
+                if limit == 'memory':
+                    podHasMemoryLimit[1] = "PASS"
+                if limit == 'cpu':
+                    podHasCPULimit[1] = "PASS"
+
+        if container.security_context is not None:
+            if container.security_context.privileged == False:
+                podIsPrivileged[1] = "PASS"
+
+            if container.security_context.run_as_non_root == True:
+                podIsRoot[1] = "PASS"
+
+            if container.security_context.read_only_root_filesystem == True:
+                podFSSafe[1] = "PASS"
+
+            if container.security_context.capabilities is not None:
+                for entry in container.security_context.capabilities.drop:
+                    if entry.lower() == "all":
+                        podDropsCapabilities[1] = "PASS"
+                if container.security_context.capabilities.add is not None:
+                    if 'CAP_SYS_ADMIN' in container.security_context.capabilities.add:
+                        podDropsCapabilities[1] = "FAIL"
 
         if image in allRunningPods:
             continue
@@ -202,7 +241,7 @@ for pod in v1.list_pod_for_all_namespaces().items:
             print("If this error looks abnormal please check https://status.snyk.io/ for any incidents")
             continue
         
-        podObject = podMetadata(image, podLabels, podAnnotations)
+        podObject = podMetadata(image, podLabels, podAnnotations, podSecurityData)
 
         if not responseJSON.get('data'):
             print("{} does not exist in Snyk, adding it to the queue to be scanned".format(image))
