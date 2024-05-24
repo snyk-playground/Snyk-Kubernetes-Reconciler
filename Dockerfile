@@ -9,8 +9,7 @@ RUN apk add docker
 
 RUN addgroup docker
 RUN addgroup nonroot docker
-RUN pip install --no-cache-dir --upgrade pip && \ 
-    pip install --no-cache-dir requests kubernetes
+RUN pip install -r requirements.txt
 
 COPY --from=snyk/snyk:linux /usr/local/bin/snyk /usr/local/bin/snyk
 ENV PYTHONUNBUFFERED=1

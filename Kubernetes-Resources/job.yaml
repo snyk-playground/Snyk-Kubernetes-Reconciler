@@ -31,7 +31,7 @@ spec:
           value: "False"
         volumeMounts:
         - mountPath: /tmp/.docker
-          name: snyk-cred
+          name: snyk-creds
       restartPolicy: Never
       volumes:
       - name: docker-config
