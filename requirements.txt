@@ -8,6 +8,7 @@ oauthlib==3.2.2
 pyasn1==0.6.0
 pyasn1-modules==0.4.0
 python-dateutil==2.9.0.post0
+python-json-logger==2.0.7
 PyYAML==6.0.1
 requests==2.32.1
 requests-oauthlib==2.0.0
