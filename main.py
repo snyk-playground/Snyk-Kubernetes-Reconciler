@@ -197,6 +197,7 @@ for pod in v1.list_pod_for_all_namespaces().items:
                 if image in imagesInContainer.image:
                     image = imagesInContainer.image
 
+                    
         podHasCPULimit = ["PodHasCPULimit","FAIL"]
         podHasMemoryLimit = ["podHasMemoryLimit","FAIL"]
         podIsPrivileged = ["podIsPrivileged","FAIL"]
