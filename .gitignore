@@ -1,1 +1,4 @@
 Kubernetes-Resources-for-testing
+env
+__pycache__
+.gitignore
