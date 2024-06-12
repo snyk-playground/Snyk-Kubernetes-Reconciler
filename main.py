@@ -14,7 +14,7 @@ import logging
 
 APIKEY =  os.getenv("SNYK_TOKEN")
 ORGID = os.getenv("SNYK_CFG_ORG_ID")
-SNYKAPIVERSION = "2023-11-06~beta"
+SNYKAPIVERSION = "2024-05-23"
 SNYKDEBUG = bool(os.getenv("SNYKDEBUG"))
 DOCKERPASSWORD = os.getenv("DOCKERPASSWORD")
 DOCKERUSER = os.getenv("DOCKERUSER")
@@ -28,16 +28,18 @@ subprocess.run([SNYKPATH, "auth", APIKEY.split()[1]], shell=False)
 ignoredMetadata = ["pod-template-hash","kubectl.kubernetes.io/last-applied-configuration", "app.kubernetes.io/instance", "kubernetes.io/config.seen", "component"]
 
 class podMetadata:
-    def __init__(self, imageName, labels, annotations, securityMetadata) -> None:
+    def __init__(self, imageName, labels, annotations, securityMetadata, ownerRef) -> None:
         self.imageName = imageName
         self.labels = labels
         self.annotations = annotations
         self.securityMetadata = securityMetadata
+        self.ownerRef = ownerRef
 
 def scanMissingImages(image):
 
         tags = []
-        
+        tags.append(image.ownerRef)
+
         for podSecurityData in image.securityMetadata:
             tagVal = podSecurityData[0] + "=" + podSecurityData[1]
             tags.append(tagVal)
@@ -100,7 +102,7 @@ def deleteNonRunningTargets():
                 break
             containerImageUrl = "https://api.snyk.io/{}&version={}&limit=100".format(nextPageUrl, SNYKAPIVERSION)
     except reqs.RequestException as ex:
-        logger.warning("Some issue deleting the designated target, exception: {}".format(ex))
+        logger.warning("Some issue querying the designated target, exception: {}".format(ex))
         logger.warning("If this error looks abnormal please check https://status.snyk.io/ for any incidents")
 
 
@@ -117,40 +119,59 @@ def deleteNonRunningTargets():
                 break
             allProjectsURL = "https://api.snyk.io{}".format(nextPageProjectURL)           
     except reqs.RequestException as ex:
-        logger.warning("Some issue deleting the designated target, exception: {}".format(ex))
+        logger.warning("Some issue querying the designated target, exception: {}".format(ex))
         logger.warning("If this error looks abnormal please check https://status.snyk.io/ for any incidents")
+
+    deletedTargetIDs= []
 
     for containerImage in fullListofContainers:
 
-        if containerImage['relationships']['image_target_refs']['links'].get('self') is None or containerImage['attributes'].get('names') is None:
-            continue
-
         for imageName in containerImage['attributes']['names']:
-            if ':' in imageName:
+            if ':' in imageName and '@' not in imageName:
                 imageTagStripped = imageName.split(':')[0]
             else:
                 imageTagStripped = imageName.split('@')[0]
-            
-            if imageName not in allRunningPods and not any(imageTagStripped in subString for subString in allRunningPods):
-                deletedTargetIDs= []
+
+            if imageName not in allRunningPods and not imageName + ":latest" in allRunningPods:
+
                 for project in fullListOfProjects:
-                    if project['relationships']['target']['data']['id'] in deletedTargetIDs:
-                        continue
-                    if imageTagStripped in project['attributes']['target_reference']:
-                        deleteTargetURL = "https://api.snyk.io/rest/orgs/{}/targets/{}?version={}".format(ORGID,project['relationships']['target']['data']['id'], SNYKAPIVERSION)
+                    multiLayerProjectTag = ""
+                    if project['attributes']['name'].count(':') > 1:
+                        multiLayerProjectTag = project['attributes']['name'].rsplit(':')[0] + ":" + project['attributes']['name'].rsplit(':')[1] 
+
+                    if imageTagStripped in project['attributes']['target_reference'] and project['attributes']['name'] == imageName or multiLayerProjectTag == imageName:
+
+                        getTargetURL = "https://api.snyk.io/rest/orgs/{}/projects?target_id={}&version={}".format(ORGID,project['relationships']['target']['data']['id'], SNYKAPIVERSION)
                         try:
-                            logger.info("Attempting to delete target {}".format(project['relationships']['target']['data']['id']))
-                            deleteResp = session.delete(deleteTargetURL, headers={'Authorization': '{}'.format(APIKEY)})
+                            logger.debug("Validating project count for target image {}..".format(imageTagStripped))
+                            getTargetResp = session.get(getTargetURL, headers={'Authorization': '{}'.format(APIKEY)})
+                            getTargetResp = getTargetResp.json()
+                            logger.debug("Project count for image {} is {}".format(imageTagStripped, len(getTargetResp['data'])))
                         except reqs.RequestException as ex:
-                            logger.warning("Some issue deleting the designated target, exception: {}".format(ex))
+                            logger.warning("Some issue querying the designated target, exception: {}".format(ex))
                             continue
-                            
+                        
+                        if len(getTargetResp['data']) > 1:
+                            deleteTargetURL = "https://api.snyk.io/v1/org/{}/project/{}".format(ORGID, project['id'])
+                            try:
+                                logger.info("Attempting to delete project {}".format(project['id']))
+                                deleteResp = session.delete(deleteTargetURL, headers={'Authorization': '{}'.format(APIKEY)})
+                            except reqs.RequestException as ex:
+                                logger.warning("Some issue deleting the designated project, exception: {}".format(ex))
+                                continue           
+                            if deleteResp.status_code == 200:
+                                logger.info("succesfully deleted ProjectID {}, based off image {}".format(project['id'], imageTagStripped))
+                                continue
+                        else:
+                            deleteTargetURL = "https://api.snyk.io/rest/orgs/{}/targets/{}?version={}".format(ORGID,project['relationships']['target']['data']['id'], SNYKAPIVERSION)
+                            try:
+                                logger.info("Attempting to delete target {}".format(project['relationships']['target']['data']['id']))
+                                deleteResp = session.delete(deleteTargetURL, headers={'Authorization': '{}'.format(APIKEY)})
+                                deletedTargetIDs.append(project['relationships']['target']['data']['id'])
 
-                        deletedTargetIDs.append(project['relationships']['target']['data']['id'])
-
-                        if deleteResp.status_code == 204:
-                            logger.info("succesfully deleted targetID {}, based off image {}".format(project['relationships']['target']['data']['id'], imageTagStripped))
-                            continue
+                            except reqs.RequestException as ex:
+                                logger.warning("Some issue deleting the designated target, exception: {}".format(ex))
+                                continue
 
 
 
@@ -163,9 +184,9 @@ else:
     config.load_kube_config()
 v1 = client.CoreV1Api()
 
-
 allRunningPods = []
-needsToBeScanned = []
+scannedImages = []
+
 
 #Retry logic
 retry_strategy = Retry(
@@ -177,14 +198,22 @@ adapter = HTTPAdapter(max_retries=retry_strategy)
 session = reqs.Session()
 session.mount('https://', adapter)
 
+
 for pod in v1.list_pod_for_all_namespaces().items:
 
     multiContainerPod = pod.status.container_statuses
     podAnnotations = pod.metadata.annotations
     podLabels = pod.metadata.labels
-
+    ownerReference = "deployment-Name=None"
+    if pod._metadata._owner_references is not None:
+        ownerReference = pod._metadata._owner_references[0].name.rpartition('-')
+        ownerReference = "deployment-Name=" + ownerReference[0]
     for container in pod.spec.containers:
 
+        if container.image in scannedImages or container.image + ":latest" in scannedImages:
+            logger.info("Skipping duplicate image: {}".format(container.image))
+            continue
+        
         image = container.image
         logger.info("Attempting to pull {}, depending on the size this may take some time..".format(image))
         subprocess.run(['docker', 'pull', image], shell=False, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
@@ -235,21 +264,29 @@ for pod in v1.list_pod_for_all_namespaces().items:
         allRunningPods.append(image)
         
         encodedImage = image.replace(":", "%3A").replace("/", "%2F").replace("@", "%40")
-
         URL = "https://api.snyk.io/rest/orgs/{}/container_images?image_ids={}&version={}".format(ORGID, dockerImageID, SNYKAPIVERSION)
         try:
             logger.info("Sending request to the container images endpoint for {}".format(image))
             containerReponse = session.get(URL, headers={'Authorization': APIKEY})
             containerIDResponseJSON = containerReponse.json()
         except reqs.RequestException as ex:
-            logger.warning("Some issue calling the container_images endpoint the, exception: {}".format(ex))
+            logger.warning("Some issue calling the container_images endpoint the exception: {}".format(ex))
             logger.warning("If this error looks abnormal please check https://status.snyk.io/ for any incidents")
             continue
-        
-        podObject = podMetadata(image, podLabels, podAnnotations, podSecurityData)
+
+        URL = "https://api.snyk.io/rest/orgs/{}/projects?names={}&version={}".format(ORGID, encodedImage, SNYKAPIVERSION)
+        try:
+            logger.info("Sending request to the projects endpoint for {}".format(image))
+            projectResponse = session.get(URL, headers={'Authorization': APIKEY})
+            projectResponse = projectResponse.json()
+        except reqs.RequestException as ex:
+            logger.warning("Some issue calling the projects endpoint the exception: {}".format(ex))
+            logger.warning("If this error looks abnormal please check https://status.snyk.io/ for any incidents")
+            continue
+        podObject = podMetadata(image, podLabels, podAnnotations, podSecurityData, ownerReference)
 
         try:
-            if not containerIDResponseJSON.get('data') or not containerIDResponseJSON['data'][0]['relationships']['image_target_refs']['links']:
+            if not containerIDResponseJSON.get('data') or not projectResponse.get('data'):
                 scanMissingImages(podObject)
         except KeyError as e:
             logger.warning("Missing data field for object response from Snyk API, attempting to scan {}...".format(image))
@@ -257,6 +294,7 @@ for pod in v1.list_pod_for_all_namespaces().items:
 
         logger.info("Removing downloaded image {}".format(image))
         subprocess.run(['docker', 'rmi', image], shell=False, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+        scannedImages.append(image)
 
 deleteNonRunningTargets()
 session.close()
