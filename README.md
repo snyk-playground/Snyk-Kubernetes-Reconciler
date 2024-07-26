@@ -35,6 +35,17 @@ Currently, this is limited to basic authentication.
 7. After creating your secret, you can run a job with `kubectl apply -f Kubernetes-resources/job.yaml`. If you are looking to do cadenced runs you can easily convert this to a cronjob (https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/)
 
 
+# Insights Support
+
+[Insights](https://docs.snyk.io/manage-risk/prioritize-issues-for-fixing/set-up-insights-for-snyk-apprisk) container label gathering is supported by this project. This is controlled by two labels:
+
+```
+org.opencontainers.image.source=<Your Repo Source>
+io.snyk.containers.repo.branch=<Your Custom Branch>
+```
+
+By OCI standards, the source label will not contain the branch, though Snyk needs this information to correlate Container projects back to its source repository. Because of this, this project looks for a custom Snyk Label to be added to the container source to specify the branch. If this label is not found when running `docker inspect` after pulling your image, it will be assumed that the project is being built from `main`.
+
 # Contributing
 
 Contributors are welcome! Feel free to raise questions, feature requests or change sets in this Github Repository!
