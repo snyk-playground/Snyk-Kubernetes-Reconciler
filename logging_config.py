@@ -2,7 +2,6 @@ import logging.config
 from pythonjsonlogger import jsonlogger
 import os
 
-
 LOG_LEVEL = os.getenv("LOG_LEVEL").upper()
 
 LOGGING = {

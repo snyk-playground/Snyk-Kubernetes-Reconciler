@@ -125,6 +125,7 @@ def deleteNonRunningTargets():
                 break
             allProjectsURL = "https://api.snyk.io{}".format(nextPageProjectURL)           
     except reqs.RequestException as ex:
+
         logger.warning("Some issue querying the designated target, exception: {}".format(ex))
         logger.warning("If this error looks abnormal please check https://status.snyk.io/ for any incidents")
 
@@ -148,6 +149,19 @@ def deleteNonRunningTargets():
                     multiLayerProjectTag = ""
                     if project['attributes']['name'].count(':') > 1:
                         multiLayerProjectTag = project['attributes']['name'].rsplit(':')[0] + ":" + project['attributes']['name'].rsplit(':')[1] 
+
+                    if project['relationships']['target']['data']['id'] in deletedTargetIDs:
+                        continue
+                    if imageTagStripped in project['attributes']['target_reference']:
+                        deleteTargetURL = "https://api.snyk.io/rest/orgs/{}/targets/{}?version={}".format(ORGID,project['relationships']['target']['data']['id'], SNYKAPIVERSION)
+                        try:
+                            logger.info("Attempting to delete target {}".format(project['relationships']['target']['data']['id']))
+                            deleteResp = session.delete(deleteTargetURL, headers={'Authorization': '{}'.format(APIKEY)})
+                        except reqs.RequestException as ex:
+                            logger.warning("Some issue deleting the designated target, exception: {}".format(ex))
+                            continue
+                            
+
 
                     if imageTagStripped in project['attributes']['target_reference'] and project['attributes']['name'] == imageName or multiLayerProjectTag == imageName:
 
@@ -208,14 +222,15 @@ adapter = HTTPAdapter(max_retries=retry_strategy)
 session = reqs.Session()
 session.mount('https://', adapter)
 
-
 for pod in v1.list_pod_for_all_namespaces().items:
 
     multiContainerPod = pod.status.container_statuses
     podAnnotations = pod.metadata.annotations
     podLabels = pod.metadata.labels
+
     ownerReference = "Owner-Reference=None"
     insightsLabel = ""
+
     if pod._metadata._owner_references is not None:
         ownerReference = pod._metadata._owner_references[0].name.rpartition('-')
         ownerReference = "Owner-Reference-Name=" + ownerReference[0]
@@ -224,7 +239,10 @@ for pod in v1.list_pod_for_all_namespaces().items:
         if container.image in scannedImages or container.image + ":latest" in scannedImages:
             logger.info("Skipping duplicate image: {}".format(container.image))
             continue
-        
+
+    for container in pod.spec.containers:
+
+
         image = container.image
         logger.info("Attempting to pull {}, depending on the size this may take some time..".format(image))
         subprocess.run(['docker', 'pull', image], shell=False, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
@@ -258,6 +276,7 @@ for pod in v1.list_pod_for_all_namespaces().items:
             for imagesInContainer in multiContainerPod:
                 if image in imagesInContainer.image:
                     image = imagesInContainer.image
+
 
         podHasCPULimit = ["PodHasCPULimit","FAIL"]
         podHasMemoryLimit = ["podHasMemoryLimit","FAIL"]
@@ -297,6 +316,7 @@ for pod in v1.list_pod_for_all_namespaces().items:
         allRunningPods.append(image)
         
         encodedImage = image.replace(":", "%3A").replace("/", "%2F").replace("@", "%40")
+
         URL = "https://api.snyk.io/rest/orgs/{}/container_images?image_ids={}&version={}".format(ORGID, dockerImageID, SNYKAPIVERSION)
         try:
             logger.info("Sending request to the container images endpoint for {}".format(image))
@@ -328,6 +348,7 @@ for pod in v1.list_pod_for_all_namespaces().items:
         logger.info("Removing downloaded image {}".format(image))
         subprocess.run(['docker', 'rmi', image], shell=False, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
         scannedImages.append(image)
+
 
 deleteNonRunningTargets()
 session.close()
