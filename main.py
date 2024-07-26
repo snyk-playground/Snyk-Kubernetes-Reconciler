@@ -28,12 +28,13 @@ subprocess.run([SNYKPATH, "auth", APIKEY.split()[1]], shell=False)
 ignoredMetadata = ["pod-template-hash","kubectl.kubernetes.io/last-applied-configuration", "app.kubernetes.io/instance", "kubernetes.io/config.seen", "component"]
 
 class podMetadata:
-    def __init__(self, imageName, labels, annotations, securityMetadata, ownerRef) -> None:
+    def __init__(self, imageName, labels, annotations, securityMetadata, ownerRef, repoSource) -> None:
         self.imageName = imageName
         self.labels = labels
         self.annotations = annotations
         self.securityMetadata = securityMetadata
         self.ownerRef = ownerRef
+        self.repoSource = repoSource
 
 def scanMissingImages(image):
 
@@ -49,7 +50,9 @@ def scanMissingImages(image):
             for podMetadata in image.labels:
                 if podMetadata in ignoredMetadata or len(podMetadata) > 30:
                     continue
-                if len(tags) >= 10:
+                
+                #Snyk allows a default of 10, but we need to save 1 for insights tagging later
+                if len(tags) >= 9:
                     break
                 tagVal = podMetadata + "=" + image.labels[podMetadata]
                 tags.append(tagVal)
@@ -60,7 +63,7 @@ def scanMissingImages(image):
             for podMetadata in image.annotations:
                 if podMetadata in ignoredMetadata or len(podMetadata) > 30:
                     continue
-                if len(tags) >= 10:
+                if len(tags) >= 9:
                     break
                 tagVal = podMetadata + "=" + image.annotations[podMetadata]
                 tags.append(tagVal)
@@ -75,7 +78,10 @@ def scanMissingImages(image):
         args.append(image.imageName)
         args.append('--project-name=' + image.imageName)
         if tags:
-            args.append('--tags=' + tagVal)
+            if image.repoSource != "":
+                args.append('--tags=' + image.repoSource + ',' +tagVal)
+            else:
+                args.append('--tags=' + tagVal)
         if SNYKDEBUG:
             args.append('-d')
         if ORGID:
@@ -135,6 +141,10 @@ def deleteNonRunningTargets():
             if imageName not in allRunningPods and not imageName + ":latest" in allRunningPods:
 
                 for project in fullListOfProjects:
+
+                    if project['relationships']['target']['data']['id'] in deletedTargetIDs:
+                        continue
+
                     multiLayerProjectTag = ""
                     if project['attributes']['name'].count(':') > 1:
                         multiLayerProjectTag = project['attributes']['name'].rsplit(':')[0] + ":" + project['attributes']['name'].rsplit(':')[1] 
@@ -204,10 +214,11 @@ for pod in v1.list_pod_for_all_namespaces().items:
     multiContainerPod = pod.status.container_statuses
     podAnnotations = pod.metadata.annotations
     podLabels = pod.metadata.labels
-    ownerReference = "deployment-Name=None"
+    ownerReference = "Owner-Reference=None"
+    insightsLabel = ""
     if pod._metadata._owner_references is not None:
         ownerReference = pod._metadata._owner_references[0].name.rpartition('-')
-        ownerReference = "deployment-Name=" + ownerReference[0]
+        ownerReference = "Owner-Reference-Name=" + ownerReference[0]
     for container in pod.spec.containers:
 
         if container.image in scannedImages or container.image + ":latest" in scannedImages:
@@ -219,8 +230,30 @@ for pod in v1.list_pod_for_all_namespaces().items:
         subprocess.run(['docker', 'pull', image], shell=False, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
         output = subprocess.run(['docker', 'inspect', image], shell=False, capture_output=True, text=True)
         dockerImageID = json.loads(output.stdout)
+        if dockerImageID == []:
+            logger.warning("Attempted to pull image {} and recieved no response. Please ensure this image exists in the expected registry.".format(image))
+            logger.warning("Skipping scanning, continuing run...")
+            continue
+        if dockerImageID[0]['Config']['Labels'] is not None:
+            if dockerImageID[0]['Config']['Labels'].get('org.opencontainers.image.source'):
+                dockerImageSource = dockerImageID[0]['Config']['Labels']['org.opencontainers.image.source']
+                dockerImageSource = dockerImageSource.replace("https://", "")
+                logger.info("Found image repo label, adding it to the project.")
+            else:
+                logger.warning("OCI image source label not found")
+            if dockerImageID[0]['Config']['Labels'].get('io.snyk.containers.repo.branch'):
+                dockerRepoBranch = dockerImageID[0]['Config']['Labels']['io.snyk.containers.repo.branch']
+                logger.info("Found image branch label, adding it to the project.")
+            else:
+                logger.warning("Container label io.snyk.containers.repo.branch not set, assuming main for branch source")
+            if 'dockerImageSource' in locals():
+                if 'dockerRepoBranch' in locals():
+                    insightsLabel = "component=pkg:{}@{}".format(dockerImageSource, dockerRepoBranch)
+                else:
+                    insightsLabel = "component=pkg:{}@main".format(dockerImageSource)
+                                
         dockerImageID = dockerImageID[0]['Id'].replace(":", "%3A")
-
+        
         if ':' not in image:
             for imagesInContainer in multiContainerPod:
                 if image in imagesInContainer.image:
@@ -283,7 +316,7 @@ for pod in v1.list_pod_for_all_namespaces().items:
             logger.warning("Some issue calling the projects endpoint the exception: {}".format(ex))
             logger.warning("If this error looks abnormal please check https://status.snyk.io/ for any incidents")
             continue
-        podObject = podMetadata(image, podLabels, podAnnotations, podSecurityData, ownerReference)
+        podObject = podMetadata(image, podLabels, podAnnotations, podSecurityData, ownerReference, insightsLabel)
 
         try:
             if not containerIDResponseJSON.get('data') or not projectResponse.get('data'):

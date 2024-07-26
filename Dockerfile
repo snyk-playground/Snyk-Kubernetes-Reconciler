@@ -11,6 +11,10 @@ RUN addgroup docker
 RUN addgroup nonroot docker
 RUN pip install -r requirements.txt
 
+LABEL org.opencontainers.image.source="https://github.com/snyk-playground/Snyk-Kubernetes-Reconciler"
+LABEL io.snyk.containers.image.dockerfile="/Dockerfile"
+LABEL io.snyk.containers.repo.branch="main"
+
 COPY --from=snyk/snyk:linux /usr/local/bin/snyk /usr/local/bin/snyk
 ENV PYTHONUNBUFFERED=1
 
