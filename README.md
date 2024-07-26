@@ -50,4 +50,18 @@ By OCI standards, the source label will not contain the branch, though Snyk need
 
 Contributors are welcome! Feel free to raise questions, feature requests or change sets in this Github Repository!
 
+
+1. `SNYK_TOKEN` environment variable set with the relevant API token from the Snyk tennant.
+2. `SNYK_CFG_ORG_ID` environment variable set with the relevant organization ID from the Snyk tennant.
+3. A local Docker client running, that has access to the private repositories that your pods are running images from. If desired, you can also set the `DOCKERUSER` and `DOCKERPASSWORD` environment variables to pass to the Snyk CLI.
+4. The Snyk CLI is available on the machine, pathing is based on the command `which snyk`.
+5. Python available on the local machine, with the appropriate requirements installed. These can be installed by running `pip install -r requirements.txt` in the root directory of this project.
+
+Once you have set the appropriate variables, you can run the script with `python main.py`.
+
+
+# Contributing
+
+Contributors are welcome! Feel free to raise questions, feature requests or change sets in this Github Repository!
+
 To test your changes, fork the Snyk-Kubernetes-Reconciler repository and add your changes there then open a PR when you are ready for review.
