@@ -46,10 +46,7 @@ io.snyk.containers.repo.branch=<Your Custom Branch>
 
 By OCI standards, the source label will not contain the branch, though Snyk needs this information to correlate Container projects back to its source repository. Because of this, this project looks for a custom Snyk Label to be added to the container source to specify the branch. If this label is not found when running `docker inspect` after pulling your image, it will be assumed that the project is being built from `main`.
 
-# Contributing
-
-Contributors are welcome! Feel free to raise questions, feature requests or change sets in this Github Repository!
-
+# Running on a local machine
 
 1. `SNYK_TOKEN` environment variable set with the relevant API token from the Snyk tennant.
 2. `SNYK_CFG_ORG_ID` environment variable set with the relevant organization ID from the Snyk tennant.
