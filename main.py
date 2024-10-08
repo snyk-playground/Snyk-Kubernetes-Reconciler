@@ -150,19 +150,6 @@ def deleteNonRunningTargets():
                     if project['attributes']['name'].count(':') > 1:
                         multiLayerProjectTag = project['attributes']['name'].rsplit(':')[0] + ":" + project['attributes']['name'].rsplit(':')[1] 
 
-                    if project['relationships']['target']['data']['id'] in deletedTargetIDs:
-                        continue
-                    if imageTagStripped in project['attributes']['target_reference']:
-                        deleteTargetURL = "https://api.snyk.io/rest/orgs/{}/targets/{}?version={}".format(ORGID,project['relationships']['target']['data']['id'], SNYKAPIVERSION)
-                        try:
-                            logger.info("Attempting to delete target {}".format(project['relationships']['target']['data']['id']))
-                            deleteResp = session.delete(deleteTargetURL, headers={'Authorization': '{}'.format(APIKEY)})
-                        except reqs.RequestException as ex:
-                            logger.warning("Some issue deleting the designated target, exception: {}".format(ex))
-                            continue
-                            
-
-
                     if imageTagStripped in project['attributes']['target_reference'] and project['attributes']['name'] == imageName or multiLayerProjectTag == imageName:
 
                         getTargetURL = "https://api.snyk.io/rest/orgs/{}/projects?target_id={}&version={}".format(ORGID,project['relationships']['target']['data']['id'], SNYKAPIVERSION)
@@ -248,6 +235,7 @@ for pod in v1.list_pod_for_all_namespaces().items:
         subprocess.run(['docker', 'pull', image], shell=False, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
         output = subprocess.run(['docker', 'inspect', image], shell=False, capture_output=True, text=True)
         dockerImageID = json.loads(output.stdout)
+        insightsLabel = ""
         if dockerImageID == []:
             logger.warning("Attempted to pull image {} and recieved no response. Please ensure this image exists in the expected registry.".format(image))
             logger.warning("Skipping scanning, continuing run...")
