@@ -171,7 +171,7 @@ def deleteNonRunningTargets():
                                 logger.warning("Some issue deleting the designated project, exception: {}".format(ex))
                                 continue           
                             if deleteResp.status_code == 200:
-                                logger.info("succesfully deleted ProjectID {}, based off image {}".format(project['id'], imageTagStripped))
+                                logger.info("succesfully deleted Project ID {}, based off image {}".format(project['id'], imageTagStripped))
                                 continue
                         else:
                             deleteTargetURL = "https://api.snyk.io/rest/orgs/{}/targets/{}?version={}".format(ORGID,project['relationships']['target']['data']['id'], SNYKAPIVERSION)
@@ -183,7 +183,9 @@ def deleteNonRunningTargets():
                             except reqs.RequestException as ex:
                                 logger.warning("Some issue deleting the designated target, exception: {}".format(ex))
                                 continue
-
+                            if deleteResp.status_code == 200:
+                                logger.info("succesfully deleted Target ID {}, based off image {}".format(project['id'], imageTagStripped))
+                                continue
 
 
 #Load Kubeconfig for interacting with the K8s API. Load in K8s api V1 to query pods. 
