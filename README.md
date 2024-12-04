@@ -1,10 +1,9 @@
+[<img alt="alt_text" src="https://raw.githubusercontent.com/snyk-labs/oss-images/main/oss-example.jpg" />](https://raw.githubusercontent.com/snyk-labs/oss-images/main/oss-example.jpg)
+
 # Snyk-Kubernetes-reconciler
 Stop-gap visibility while V3 of the enterprise monitor is not GA
 
 This tool provides stop-gap visibility while the Snyk-Monitor V3 is not GA. This script uses, the K8s API to validate what is currently running in the cluster, then reaches out to Snyk via API to validate the difference between what is currently being scanned and what is not. Once this is done, it uploads (Via Snyk container monitor) container images to the UI, then proceeds to remove any images that are present within Snyk but not running on the cluster.
-
-[<img alt="alt_text" src="https://raw.githubusercontent.com/snyk-labs/oss-images/main/oss-example.jpg" />](https://raw.githubusercontent.com/snyk-labs/oss-images/main/oss-example.jpg)
-
 
 # Approach
 
@@ -12,28 +11,18 @@ The general idea is to query the Kubernetes API server (once), and validate what
 
 # How to Deploy
 
-To deploy the K8s reconciler, you will first need to create the relevant Role resources; within the K8s folder, there is a file roleResources.yaml which contains: A serviceAccount, ClusterRole, ClusterRoleBinding. The serviceAccount gets mounted into the pod and the cluster scope is needed to grab all pods. After you download the repo to your workstation, you will need to move your terminal to the root of the project and run all commands from there:
+To run this script you will need to set the below environment variables: 
 
-1. `docker build . -t YourImageName:YourImageTag`. This will build using the local Dockerfile and tag the image with the relevant name for your organization
+`SNYK_TOKEN` environment variable set with the relevant API token from the Snyk tennant.
 
-2. `docker push YourImageName:YourImageTag`. This will push the image we just created to your repository to be pulled by the Cron Job/Job resource that we will deploy later.
+`SNYK_CFG_ORG_ID` environment variable set with the relevant organization ID from the Snyk tennant.
 
-3. After doing so, you will need to edit the `image` entry within the Job.yaml to point to the image that you pushed to your registry.
+A local Docker client running, that has access to the private repositories that your pods are running images from. If desired, you can also set the `DOCKERUSER` and `DOCKERPASSWORD` environment variables to pass to the Snyk CLI.
 
-4. `kubectl create ns snyk-reconciler`. This creates a namespace so we can deploy our resources separated from the rest of the cluster.
+The Snyk CLI is available on the machine, pathing is based on the command `which snyk`.
 
-5. `kubectl apply -f Kubernetes-Resources/roleResources.yaml -n snyk-reconciler`. These are the Kubernetes role resources needed to deploy, this requires cluster scope and the ability to list pods in all namespaces. If there is an issue deploying this file, you can apply them individually as well.
-
-6. Once the Resources are created you will need to create a secret named `snyk-creds` in the namespace your job runs. If you require that the Reconciler pulls from private repositories, you can instead point the dockercfg.json at a config file that has credentials that can access all repositories. The following command can be used to generate the secret, there is no need to include the `Token` prefix for your APITOKEN:
-
-```
-kubectl create secret generic snyk-creds -n snyk-reconciler --from-file=dockercfg.json={} --from-literal=SNYK_CFG_ORG_ID={} --from-literal=SNYK_TOKEN={}
-```
-
-Currently, this is limited to basic authentication.
-
-7. After creating your secret, you can run a job with `kubectl apply -f Kubernetes-resources/job.yaml`. If you are looking to do cadenced runs you can easily convert this to a cronjob (https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/)
-
+Python available on the local machine, with the appropriate requirements installed. These can be installed by running `pip install -r requirements.txt` in the root directory of this project.
+Once you have set the appropriate variables, you can run the script with `python main.py`.
 
 # Insights Support
 

@@ -1,6 +1,3 @@
-# Snyk-Kubernetes-reconciler
-Stop-gap visibility while V3 of the enterprise monitor is not GA. This implemtnation requires running Docker inside of Docker (DIND), which means there is a requirement that this pod runs as privledged.
-
 [<img alt="alt_text" src="https://raw.githubusercontent.com/snyk-labs/oss-images/main/oss-example.jpg" />](https://raw.githubusercontent.com/snyk-labs/oss-images/main/oss-example.jpg)
 
 # How to Deploy
@@ -15,7 +12,7 @@ To deploy the K8s reconciler, you will first need to create the relevant Role re
 
 4. `kubectl create ns snyk-reconciler`. This creates a namespace so we can deploy our resources separated from the rest of the cluster.
 
-5. `kubectl apply -f /Kubernetes-Resources/roleResources.yaml -n snyk-reconciler`. These are the Kubernetes role resources needed to deploy, this requires cluster scope and the ability to list pods in all namespaces. If there is an issue deploying this file, you can apply them individually as well.
+5. `kubectl apply -f Kubernetes-Resources/roleResources.yaml -n snyk-reconciler`. These are the Kubernetes role resources needed to deploy, this requires cluster scope and the ability to list pods in all namespaces. If there is an issue deploying this file, you can apply them individually as well.
 
 6. Once the Resources are created you will need to create a secret named `snyk-creds` in the namespace your job runs. If you require that the Reconciler pulls from private repositories, you can instead point the dockercfg.json at a config file that has credentials that can access all repositories. The following command can be used to generate the secret, there is no need to include the `Token` prefix for your APITOKEN:
 
@@ -25,4 +22,22 @@ kubectl create secret generic snyk-creds -n snyk-reconciler --from-file=dockercf
 
 Currently, this is limited to basic authentication.
 
-7. After creating your secret, you can run a job with `kubectl apply -f job.yaml`. If you are looking to do cadenced runs you can easily convert this to a cronjob (https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/)
+7. After creating your secret, you can run a job with `kubectl apply -f Kubernetes-resources/job.yaml`. If you are looking to do cadenced runs you can easily convert this to a cronjob (https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/)
+
+
+# Insights Support
+
+[Insights](https://docs.snyk.io/manage-risk/prioritize-issues-for-fixing/set-up-insights-for-snyk-apprisk) container label gathering is supported by this project. This is controlled by two labels:
+
+```
+org.opencontainers.image.source=<Your Repo Source>
+io.snyk.containers.repo.branch=<Your Custom Branch>
+```
+
+By OCI standards, the source label will not contain the branch, though Snyk needs this information to correlate Container projects back to its source repository. Because of this, this project looks for a custom Snyk Label to be added to the container source to specify the branch. If this label is not found when running `docker inspect` after pulling your image, it will be assumed that the project is being built from `main`.
+
+# Contributing
+
+Contributors are welcome! Feel free to raise questions, feature requests or change sets in this Github Repository!
+
+To test your changes, fork the Snyk-Kubernetes-Reconciler repository and add your changes there then open a PR when you are ready for review.
