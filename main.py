@@ -133,60 +133,62 @@ def deleteNonRunningTargets():
 
     for containerImage in fullListofContainers:
 
-        for imageName in containerImage['attributes']['names']:
-            if ':' in imageName and '@' not in imageName:
-                imageTagStripped = imageName.split(':')[0]
-            else:
-                imageTagStripped = imageName.split('@')[0]
+        try: 
+            for imageName in containerImage['attributes']['names']:
+                if ':' in imageName and '@' not in imageName:
+                    imageTagStripped = imageName.split(':')[0]
+                else:
+                    imageTagStripped = imageName.split('@')[0]
 
-            if imageName not in allRunningPods and not imageName + ":latest" in allRunningPods:
+                if imageName not in allRunningPods and not imageName + ":latest" in allRunningPods:
 
-                for project in fullListOfProjects:
+                    for project in fullListOfProjects:
 
-                    if project['relationships']['target']['data']['id'] in deletedTargetIDs:
-                        continue
-
-                    multiLayerProjectTag = ""
-                    if project['attributes']['name'].count(':') > 1:
-                        multiLayerProjectTag = project['attributes']['name'].rsplit(':')[0] + ":" + project['attributes']['name'].rsplit(':')[1] 
-
-                    if imageTagStripped in project['attributes']['target_reference'] and project['attributes']['name'] == imageName or multiLayerProjectTag == imageName:
-
-                        getTargetURL = "https://api.snyk.io/rest/orgs/{}/projects?target_id={}&version={}".format(ORGID,project['relationships']['target']['data']['id'], SNYKAPIVERSION)
-                        try:
-                            logger.debug("Validating project count for target image {}..".format(imageTagStripped))
-                            getTargetResp = session.get(getTargetURL, headers={'Authorization': '{}'.format(APIKEY)})
-                            getTargetResp = getTargetResp.json()
-                            logger.debug("Project count for image {} is {}".format(imageTagStripped, len(getTargetResp['data'])))
-                        except reqs.RequestException as ex:
-                            logger.warning("Some issue querying the designated target, exception: {}".format(ex))
+                        if project['relationships']['target']['data']['id'] in deletedTargetIDs:
                             continue
-                        
-                        if len(getTargetResp['data']) > 1:
-                            deleteTargetURL = "https://api.snyk.io/v1/org/{}/project/{}".format(ORGID, project['id'])
-                            try:
-                                logger.info("Attempting to delete project {}".format(project['id']))
-                                deleteResp = session.delete(deleteTargetURL, headers={'Authorization': '{}'.format(APIKEY)})
-                            except reqs.RequestException as ex:
-                                logger.warning("Some issue deleting the designated project, exception: {}".format(ex))
-                                continue           
-                            if deleteResp.status_code == 200:
-                                logger.info("succesfully deleted Project ID {}, based off image {}".format(project['id'], imageTagStripped))
-                                continue
-                        else:
-                            deleteTargetURL = "https://api.snyk.io/rest/orgs/{}/targets/{}?version={}".format(ORGID,project['relationships']['target']['data']['id'], SNYKAPIVERSION)
-                            try:
-                                logger.info("Attempting to delete target {}".format(project['relationships']['target']['data']['id']))
-                                deleteResp = session.delete(deleteTargetURL, headers={'Authorization': '{}'.format(APIKEY)})
-                                deletedTargetIDs.append(project['relationships']['target']['data']['id'])
 
-                            except reqs.RequestException as ex:
-                                logger.warning("Some issue deleting the designated target, exception: {}".format(ex))
-                                continue
-                            if deleteResp.status_code == 200:
-                                logger.info("succesfully deleted Target ID {}, based off image {}".format(project['id'], imageTagStripped))
-                                continue
+                        multiLayerProjectTag = ""
+                        if project['attributes']['name'].count(':') > 1:
+                            multiLayerProjectTag = project['attributes']['name'].rsplit(':')[0] + ":" + project['attributes']['name'].rsplit(':')[1] 
 
+                        if imageTagStripped in project['attributes']['target_reference'] and project['attributes']['name'] == imageName or multiLayerProjectTag == imageName:
+
+                            getTargetURL = "https://api.snyk.io/rest/orgs/{}/projects?target_id={}&version={}".format(ORGID,project['relationships']['target']['data']['id'], SNYKAPIVERSION)
+                            try:
+                                logger.debug("Validating project count for target image {}..".format(imageTagStripped))
+                                getTargetResp = session.get(getTargetURL, headers={'Authorization': '{}'.format(APIKEY)})
+                                getTargetResp = getTargetResp.json()
+                                logger.debug("Project count for image {} is {}".format(imageTagStripped, len(getTargetResp['data'])))
+                            except reqs.RequestException as ex:
+                                logger.warning("Some issue querying the designated target, exception: {}".format(ex))
+                                continue
+                            
+                            if len(getTargetResp['data']) > 1:
+                                deleteTargetURL = "https://api.snyk.io/v1/org/{}/project/{}".format(ORGID, project['id'])
+                                try:
+                                    logger.info("Attempting to delete project {}".format(project['id']))
+                                    deleteResp = session.delete(deleteTargetURL, headers={'Authorization': '{}'.format(APIKEY)})
+                                except reqs.RequestException as ex:
+                                    logger.warning("Some issue deleting the designated project, exception: {}".format(ex))
+                                    continue           
+                                if deleteResp.status_code == 200:
+                                    logger.info("succesfully deleted Project ID {}, based off image {}".format(project['id'], imageTagStripped))
+                                    continue
+                            else:
+                                deleteTargetURL = "https://api.snyk.io/rest/orgs/{}/targets/{}?version={}".format(ORGID,project['relationships']['target']['data']['id'], SNYKAPIVERSION)
+                                try:
+                                    logger.info("Attempting to delete target {}".format(project['relationships']['target']['data']['id']))
+                                    deleteResp = session.delete(deleteTargetURL, headers={'Authorization': '{}'.format(APIKEY)})
+                                    deletedTargetIDs.append(project['relationships']['target']['data']['id'])
+
+                                except reqs.RequestException as ex:
+                                    logger.warning("Some issue deleting the designated target, exception: {}".format(ex))
+                                    continue
+                                if deleteResp.status_code == 200:
+                                    logger.info("succesfully deleted Target ID {}, based off image {}".format(project['id'], imageTagStripped))
+                                    continue
+        except KeyError as ex:
+            logger.warning("Error checking container name reference: {}".format(ex))
 
 #Load Kubeconfig for interacting with the K8s API. Load in K8s api V1 to query pods. 
 if os.getenv('KUBERNETES_SERVICE_HOST'):
