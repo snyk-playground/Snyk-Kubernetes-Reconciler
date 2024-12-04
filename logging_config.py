@@ -2,8 +2,12 @@ import logging.config
 from pythonjsonlogger import jsonlogger
 import os
 
-LOG_LEVEL = os.getenv("LOG_LEVEL").upper()
+LOG_LEVEL = os.getenv("LOG_LEVEL")
 
+if not LOG_LEVEL:
+    LOG_LEVEL = "DEBUG"
+else:
+    LOG_LEVEL = LOG_LEVEL.upper()
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
