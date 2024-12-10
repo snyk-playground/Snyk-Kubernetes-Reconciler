@@ -19,7 +19,11 @@ SNYKDEBUG = bool(os.getenv("SNYKDEBUG"))
 DOCKERPASSWORD = os.getenv("DOCKERPASSWORD")
 DOCKERUSER = os.getenv("DOCKERUSER")
 APIKEY = "Token " + APIKEY
-
+SNYKURL = os.getenv("SNYK_URL")
+if not SNYKURL:
+    SNYKURL = "https://api.snyk.io"
+else:
+    SNYKURL = os.getenv("sn")
 logger = logging.getLogger(__name__)
 
 SNYKPATH =  re.findall('\/.*snyk',str(subprocess.run(["which",  "snyk"], shell=False, stdout=subprocess.PIPE).stdout))[0]
@@ -97,7 +101,7 @@ def deleteNonRunningTargets():
 
     fullListofContainers = []
     try:
-        containerImageUrl = "https://api.snyk.io/rest/orgs/{}/container_images?version={}&limit=100".format(ORGID, SNYKAPIVERSION)
+        containerImageUrl = "{}/rest/orgs/{}/container_images?version={}&limit=100".format(SNYKURL, ORGID, SNYKAPIVERSION)
         while True:
             containerResponse = session.get(containerImageUrl, headers={'Authorization': APIKEY})
             containerResponse.raise_for_status()
@@ -106,7 +110,7 @@ def deleteNonRunningTargets():
             nextPageUrl = containerResponseJSON['links'].get('next')
             if not nextPageUrl:
                 break
-            containerImageUrl = "https://api.snyk.io/{}&version={}&limit=100".format(nextPageUrl, SNYKAPIVERSION)
+            containerImageUrl = "{}/{}&version={}&limit=100".format(SNYKURL, nextPageUrl, SNYKAPIVERSION)
     except reqs.RequestException as ex:
         logger.warning("Some issue querying the designated target, exception: {}".format(ex))
         logger.warning("If this error looks abnormal please check https://status.snyk.io/ for any incidents")
@@ -114,7 +118,7 @@ def deleteNonRunningTargets():
 
     fullListOfProjects = []
     try:
-        allProjectsURL = "https://api.snyk.io/rest/orgs/{}/projects?version={}&limit=100".format(ORGID, SNYKAPIVERSION)
+        allProjectsURL = "{}/rest/orgs/{}/projects?version={}&limit=100".format(SNYKURL, ORGID, SNYKAPIVERSION)
         while True:
             projectResponse = session.get(allProjectsURL, headers={'Authorization': APIKEY})
             projectResponse.raise_for_status()
@@ -123,7 +127,7 @@ def deleteNonRunningTargets():
             nextPageProjectURL = projectResponseJSON['links'].get('next')
             if not nextPageProjectURL:
                 break
-            allProjectsURL = "https://api.snyk.io{}".format(nextPageProjectURL)           
+            allProjectsURL = "{}{}".format(SNYKURL, nextPageProjectURL)           
     except reqs.RequestException as ex:
 
         logger.warning("Some issue querying the designated target, exception: {}".format(ex))
@@ -153,7 +157,8 @@ def deleteNonRunningTargets():
 
                         if imageTagStripped in project['attributes']['target_reference'] and project['attributes']['name'] == imageName or multiLayerProjectTag == imageName:
 
-                            getTargetURL = "https://api.snyk.io/rest/orgs/{}/projects?target_id={}&version={}".format(ORGID,project['relationships']['target']['data']['id'], SNYKAPIVERSION)
+                            getTargetURL = "{}/rest/orgs/{}/projects?target_id={}&version={}".format(SNYKURL, ORGID,project['relationships']['target']['data']['id'], SNYKAPIVERSION)
+
                             try:
                                 logger.debug("Validating project count for target image {}..".format(imageTagStripped))
                                 getTargetResp = session.get(getTargetURL, headers={'Authorization': '{}'.format(APIKEY)})
@@ -164,7 +169,8 @@ def deleteNonRunningTargets():
                                 continue
                             
                             if len(getTargetResp['data']) > 1:
-                                deleteTargetURL = "https://api.snyk.io/v1/org/{}/project/{}".format(ORGID, project['id'])
+                                deleteTargetURL = "{}/v1/org/{}/project/{}".format(SNYKURL, ORGID, project['id'])
+
                                 try:
                                     logger.info("Attempting to delete project {}".format(project['id']))
                                     deleteResp = session.delete(deleteTargetURL, headers={'Authorization': '{}'.format(APIKEY)})
@@ -175,7 +181,8 @@ def deleteNonRunningTargets():
                                     logger.info("succesfully deleted Project ID {}, based off image {}".format(project['id'], imageTagStripped))
                                     continue
                             else:
-                                deleteTargetURL = "https://api.snyk.io/rest/orgs/{}/targets/{}?version={}".format(ORGID,project['relationships']['target']['data']['id'], SNYKAPIVERSION)
+                                deleteTargetURL = "{}/rest/orgs/{}/targets/{}?version={}".format(SNYKURL, ORGID,project['relationships']['target']['data']['id'], SNYKAPIVERSION)
+
                                 try:
                                     logger.info("Attempting to delete target {}".format(project['relationships']['target']['data']['id']))
                                     deleteResp = session.delete(deleteTargetURL, headers={'Authorization': '{}'.format(APIKEY)})
@@ -188,7 +195,7 @@ def deleteNonRunningTargets():
                                     logger.info("succesfully deleted Target ID {}, based off image {}".format(project['id'], imageTagStripped))
                                     continue
         except KeyError as ex:
-            logger.warning("Error checking container name reference: {}".format(ex))
+            logger.warning("Error with Key Reference: {}".format(ex))
 
 #Load Kubeconfig for interacting with the K8s API. Load in K8s api V1 to query pods. 
 if os.getenv('KUBERNETES_SERVICE_HOST'):
@@ -309,7 +316,7 @@ for pod in v1.list_pod_for_all_namespaces().items:
         
         encodedImage = image.replace(":", "%3A").replace("/", "%2F").replace("@", "%40")
 
-        URL = "https://api.snyk.io/rest/orgs/{}/container_images?image_ids={}&version={}".format(ORGID, dockerImageID, SNYKAPIVERSION)
+        URL = "{}/rest/orgs/{}/container_images?image_ids={}&version={}".format(SNYKURL, ORGID, dockerImageID, SNYKAPIVERSION)
         try:
             logger.info("Sending request to the container images endpoint for {}".format(image))
             containerReponse = session.get(URL, headers={'Authorization': APIKEY})
@@ -319,7 +326,7 @@ for pod in v1.list_pod_for_all_namespaces().items:
             logger.warning("If this error looks abnormal please check https://status.snyk.io/ for any incidents")
             continue
 
-        URL = "https://api.snyk.io/rest/orgs/{}/projects?names={}&version={}".format(ORGID, encodedImage, SNYKAPIVERSION)
+        URL = "{}/rest/orgs/{}/projects?names={}&version={}".format(SNYKURL, ORGID, encodedImage, SNYKAPIVERSION)
         try:
             logger.info("Sending request to the projects endpoint for {}".format(image))
             projectResponse = session.get(URL, headers={'Authorization': APIKEY})

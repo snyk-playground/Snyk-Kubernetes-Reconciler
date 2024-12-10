@@ -24,6 +24,9 @@ The Snyk CLI is available on the machine, pathing is based on the command `which
 Python available on the local machine, with the appropriate requirements installed. These can be installed by running `pip install -r requirements.txt` in the root directory of this project.
 Once you have set the appropriate variables, you can run the script with `python main.py`.
 
+If you are running in a non default Snyk environment (SNYK-US-1 is the default) you can set the `SNYK_URL` environment variable to the relevant value to point all [URLS](https://docs.snyk.io/snyk-api/rest-api/about-the-rest-api#api-urls) to the relvant API endpoint, the default value for this script is `https://api.snyk.io/`
+
+
 # Insights Support
 
 [Insights](https://docs.snyk.io/manage-risk/prioritize-issues-for-fixing/set-up-insights-for-snyk-apprisk) container label gathering is supported by this project. This is controlled by two labels:
