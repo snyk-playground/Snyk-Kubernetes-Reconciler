@@ -158,6 +158,7 @@ def deleteNonRunningTargets():
                         if imageTagStripped in project['attributes']['target_reference'] and project['attributes']['name'] == imageName or multiLayerProjectTag == imageName:
 
                             getTargetURL = "{}/rest/orgs/{}/projects?target_id={}&version={}".format(SNYKURL, ORGID,project['relationships']['target']['data']['id'], SNYKAPIVERSION)
+
                             try:
                                 logger.debug("Validating project count for target image {}..".format(imageTagStripped))
                                 getTargetResp = session.get(getTargetURL, headers={'Authorization': '{}'.format(APIKEY)})
@@ -169,6 +170,7 @@ def deleteNonRunningTargets():
                             
                             if len(getTargetResp['data']) > 1:
                                 deleteTargetURL = "{}/v1/org/{}/project/{}".format(SNYKURL, ORGID, project['id'])
+
                                 try:
                                     logger.info("Attempting to delete project {}".format(project['id']))
                                     deleteResp = session.delete(deleteTargetURL, headers={'Authorization': '{}'.format(APIKEY)})
@@ -180,6 +182,7 @@ def deleteNonRunningTargets():
                                     continue
                             else:
                                 deleteTargetURL = "{}/rest/orgs/{}/targets/{}?version={}".format(SNYKURL, ORGID,project['relationships']['target']['data']['id'], SNYKAPIVERSION)
+
                                 try:
                                     logger.info("Attempting to delete target {}".format(project['relationships']['target']['data']['id']))
                                     deleteResp = session.delete(deleteTargetURL, headers={'Authorization': '{}'.format(APIKEY)})
