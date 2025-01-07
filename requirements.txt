@@ -14,5 +14,5 @@ requests==2.32.1
 requests-oauthlib==2.0.0
 rsa==4.9
 six==1.16.0
-urllib3==2.2.1
+urllib3==2.2.2
 websocket-client==1.8.0
