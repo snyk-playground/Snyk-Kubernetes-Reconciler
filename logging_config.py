@@ -5,7 +5,7 @@ import os
 LOG_LEVEL = os.getenv("LOG_LEVEL")
 
 if not LOG_LEVEL:
-    LOG_LEVEL = "DEBUG"
+    LOG_LEVEL = "INFO"
 else:
     LOG_LEVEL = LOG_LEVEL.upper()
 LOGGING = {

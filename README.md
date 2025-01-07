@@ -9,6 +9,10 @@ This tool provides stop-gap visibility while the Snyk-Monitor V3 is not GA. This
 
 The general idea is to query the Kubernetes API server (once), and validate what is running against the Snyk projects API by the name of the image. If the image name is not currently in Snyk, then it is added to a queue to be scanned along with the pods labels and annotations. Once a list of missing image objects has been created, we then run scan each image with the `snyk container monitor` command with relevant metadata. We make use of the `--project-name` flag to ensure that we can create individual projects per image tag/digest. After all images have been scanned, we then pull all images from the Snyk `container_images` endpoint, then check this against all of the projects within Snyk. Once we have that information, we check the `container_images` we have gathered against the running pods in the cluster, if that `container_image` from Snyk is not present in the list of running pods, we then attempt to delete the associated target within Snyk. 
 
+# What usecase does this script help with?
+
+The aim of this script is to help assist with the automated onboarding and offboarding different CLI Container projects within Snyk based on what is running on a monitored cluster.
+
 # How to Deploy
 
 To run this script you will need to set the below environment variables: 
@@ -26,6 +30,9 @@ Once you have set the appropriate variables, you can run the script with `python
 
 If you are running in a non default Snyk environment (SNYK-US-1 is the default) you can set the `SNYK_URL` environment variable to the relevant value to point all [URLS](https://docs.snyk.io/snyk-api/rest-api/about-the-rest-api#api-urls) to the relvant API endpoint, the default value for this script is `https://api.snyk.io/`
 
+# Considerations
+
+This script attempts to pull **all images** from a given cluster, which can result in **significant network traffic**. This process is necessary to inspect each image for its labels (required for insights support) and to identify the unique `ImageID`. The `ImageID` is used to validate whether the exact image exists on the cluster, addressing scenarios where two images with the same name and tag (e.g., `:latest`) may have different underlying content.
 
 # Insights Support
 

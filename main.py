@@ -23,10 +23,10 @@ SNYKURL = os.getenv("SNYK_URL")
 if not SNYKURL:
     SNYKURL = "https://api.snyk.io"
 else:
-    SNYKURL = os.getenv("sn")
+    SNYKURL = os.getenv("SNYKURL")
 logger = logging.getLogger(__name__)
 
-SNYKPATH =  re.findall('\/.*snyk',str(subprocess.run(["which",  "snyk"], shell=False, stdout=subprocess.PIPE).stdout))[0]
+SNYKPATH = re.findall(r'\/.*snyk', str(subprocess.run(["which", "snyk"], shell=False, stdout=subprocess.PIPE).stdout))[0]
 subprocess.run([SNYKPATH, "auth", APIKEY.split()[1]], shell=False)
 
 ignoredMetadata = ["pod-template-hash","kubectl.kubernetes.io/last-applied-configuration", "app.kubernetes.io/instance", "kubernetes.io/config.seen", "component"]
@@ -195,7 +195,7 @@ def deleteNonRunningTargets():
                                     logger.info("succesfully deleted Target ID {}, based off image {}".format(project['id'], imageTagStripped))
                                     continue
         except KeyError as ex:
-            logger.warning("Error with Key Reference: {}".format(ex))
+            logger.warning("Error with Key Reference: {}, based on target ID {}".format(ex, project['relationships']['target']['data']['id']))
 
 #Load Kubeconfig for interacting with the K8s API. Load in K8s api V1 to query pods. 
 if os.getenv('KUBERNETES_SERVICE_HOST'):
