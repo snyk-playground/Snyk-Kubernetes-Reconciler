@@ -34,6 +34,9 @@ If you are running in a non default Snyk environment (SNYK-US-1 is the default) 
 
 This script attempts to pull **all images** from a given cluster, which can result in **significant network traffic**. This process is necessary to inspect each image for its labels (required for insights support) and to identify the unique `ImageID`. The `ImageID` is used to validate whether the exact image exists on the cluster, addressing scenarios where two images with the same name and tag (e.g., `:latest`) may have different underlying content.
 
+
+**This script is descructive, as in it will delete container scans that do not exist on the cluster.** General guidance is to test this in an Organization that is dedicated to it before scaling it out. 
+
 # Insights Support
 
 [Insights](https://docs.snyk.io/manage-risk/prioritize-issues-for-fixing/set-up-insights-for-snyk-apprisk) container label gathering is supported by this project. This is controlled by two labels:
